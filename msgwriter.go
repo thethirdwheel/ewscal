@@ -56,6 +56,20 @@ type AvailabilityRequest struct {
 	Fbv              FreeBusyView
 }
 
+type AvailabilityEnvelopeBody struct {
+	XMLName xml.Name `xml:"soap:Body"`
+	Request AvailabilityRequest
+}
+
+type AvailabilityEnvelope struct {
+	XMLName   xml.Name `xml:"soap:Envelope"`
+	XmlnsXsi  string   `xml:"xmlns:xsi,attr"`
+	XmlnsXsd  string   `xml:"xmlns:xsd,attr"`
+	XmlnsSoap string   `xml:"xmlns:soap,attr"`
+	XmlnsT    string   `xml:"xmlns:t"`
+	Body      AvailabilityEnvelopeBody
+}
+
 func main() {
 	tz := TimeZone{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/types", Bias: 480}
 	tz.StandardTime = Timeblock{Bias: 0, Time: "02:00:00", DayOrder: 5, Month: 10, DayOfWeek: "Sunday"}
@@ -70,9 +84,13 @@ func main() {
 	requestWindow.TimeWindow = tw
 
 	request := AvailabilityRequest{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Tz: tz, MailboxDataArray: boxBox, Fbv: requestWindow}
+
+	body := AvailabilityEnvelopeBody{Request: request}
+	envelope := AvailabilityEnvelope{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema", XmlnsSoap: "http://schemas.xmlsoap.org/soap/envelope/", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Body: body}
 	enc := xml.NewEncoder(os.Stdout)
 	enc.Indent("  ", "    ")
-	if err := enc.Encode(request); err != nil {
+	fmt.Printf(xml.Header)
+	if err := enc.Encode(envelope); err != nil {
 		fmt.Printf("error: %v\n", err)
 	}
 }
