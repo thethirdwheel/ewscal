@@ -1,43 +1,42 @@
 package main
 
 import (
-	"net"
-    "log"
-    "bufio"
-    "fmt"
-    "io/ioutil"
-    "encoding/base64"
+	"bufio"
+	"encoding/base64"
+	"fmt"
 	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
 	"github.com/ThomsonReutersEikon/go-ntlm/ntlm/messages"
+	"io/ioutil"
+	"log"
+	"net"
 )
 
 func ChallengeResponse(c net.Conn, session ntlm.ServerSession) {
-    defer c.Close()
-    status, _ := ioutil.ReadAll(bufio.NewReader(c))
-    log.Printf("Saw %s", status)
-    challengeMessage := "TlRMTVNTUAACAAAAAAAAADgAAABVgphiMx43owKH33MAAAAAAAAAAKIAogA4AAAABQEoCgAAAA8CAA4AUgBFAFUAVABFAFIAUwABABwAVQBLAEIAUAAtAEMAQgBUAFIATQBGAEUAMAA2AAQAFgBSAGUAdQB0AGUAcgBzAC4AbgBlAHQAAwA0AHUAawBiAHAALQBjAGIAdAByAG0AZgBlADAANgAuAFIAZQB1AHQAZQByAHMALgBuAGUAdAAFABYAUgBlAHUAdABlAHIAcwAuAG4AZQB0AAAAAAA="
-    challengeData, _ := base64.StdEncoding.DecodeString(challengeMessage)
-    fmt.Fprintf(c, challengeMessage)
+	defer c.Close()
+	status, _ := ioutil.ReadAll(bufio.NewReader(c))
+	log.Printf("Saw %s", status)
+	challengeMessage := "TlRMTVNTUAACAAAAAAAAADgAAABVgphiMx43owKH33MAAAAAAAAAAKIAogA4AAAABQEoCgAAAA8CAA4AUgBFAFUAVABFAFIAUwABABwAVQBLAEIAUAAtAEMAQgBUAFIATQBGAEUAMAA2AAQAFgBSAGUAdQB0AGUAcgBzAC4AbgBlAHQAAwA0AHUAawBiAHAALQBjAGIAdAByAG0AZgBlADAANgAuAFIAZQB1AHQAZQByAHMALgBuAGUAdAAFABYAUgBlAHUAdABlAHIAcwAuAG4AZQB0AAAAAAA="
+	challengeData, _ := base64.StdEncoding.DecodeString(challengeMessage)
+	fmt.Fprintf(c, challengeMessage)
 }
 
-
 func logAndHandshake(c net.Conn, session ntlm.ServerSession) {
-    defer c.Close()
-    status, _ := ioutil.ReadAll(bufio.NewReader(c))
-    log.Printf("Saw %s", status)
-//	challenge, err := session.GenerateChallengeMessage()
-//    if nil != err || nil == challenge {
-//        log.Fatal(err)
-//    }
-    status, _ = ioutil.ReadAll(bufio.NewReader(c))
-    log.Printf("Next, saw %s", status)
-    authenticateMessage, _ := messages.ParseAuthenticateMessage(status, 1)
-    cMsg, _ := messages.ParseChallengeMessage(challengeData)
-    session.SetServerChallenge(cMsg.ServerChallenge)
-    session.ProcessAuthenticateMessage(authenticateMessage)
-    fmt.Println("----- Authenticate Message ----- ")
-    fmt.Println(authenticateMessage.String())
-    fmt.Println("----- END Authenticate Message ----- ")
+	defer c.Close()
+	status, _ := ioutil.ReadAll(bufio.NewReader(c))
+	log.Printf("Saw %s", status)
+	//	challenge, err := session.GenerateChallengeMessage()
+	//    if nil != err || nil == challenge {
+	//        log.Fatal(err)
+	//    }
+	status, _ = ioutil.ReadAll(bufio.NewReader(c))
+	log.Printf("Next, saw %s", status)
+	authenticateMessage, _ := messages.ParseAuthenticateMessage(status, 1)
+	cMsg, _ := messages.ParseChallengeMessage(challengeData)
+	session.SetServerChallenge(cMsg.ServerChallenge)
+	session.ProcessAuthenticateMessage(authenticateMessage)
+	fmt.Println("----- Authenticate Message ----- ")
+	fmt.Println(authenticateMessage.String())
+	fmt.Println("----- END Authenticate Message ----- ")
 }
 
 /*func logAndAuth() {
