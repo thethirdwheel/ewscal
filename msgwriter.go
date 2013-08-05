@@ -1,14 +1,14 @@
-package ewscal
+package main
 
 import (
 	"bufio"
 	"encoding/xml"
-	"flag"
-	"fmt"
+//	"flag"
+//	"fmt"
 	"io"
 	"log"
-	"os"
-	"time"
+//	"os"
+//	"time"
 )
 
 type Timeblock struct {
@@ -86,6 +86,7 @@ func generateMailboxes(source io.Reader) Mailboxes {
 	return Mailboxes{Boxes: boxen}
 }
 
+/*
 func main() {
 	roomlist := flag.String("roomlist", "roomlist", "file containing the list of conference room email addresses to query")
 	startdate := flag.String("startdate", time.Now().Add(time.Hour*12).Format(time.RFC3339), "start time in RFC3339 format")
@@ -119,4 +120,4 @@ func main() {
 	if err := enc.Encode(envelope); err != nil {
 		fmt.Printf("error: %v\n", err)
 	}
-}
+}*/
