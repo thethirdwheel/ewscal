@@ -2,19 +2,19 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
-    "os/exec"
-    "io/ioutil"
-    "bytes"
 )
 
 type Timeblock struct {
@@ -104,18 +104,16 @@ func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, 
 
 	body := AvailabilityEnvelopeBody{Request: request}
 	envelope := AvailabilityEnvelope{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema", XmlnsSoap: "http://schemas.xmlsoap.org/soap/envelope/", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Body: body}
-    log.Print("About to make me an encoder")
 	enc := xml.NewEncoder(output)
 	enc.Indent("  ", "    ")
 	_, err := fmt.Fprint(output, xml.Header)
-    if err != nil {
-        log.Fatal("Couldn't write to pipe", err)
-    }
+	if err != nil {
+		log.Fatal("Couldn't write to pipe", err)
+	}
 	if err := enc.Encode(envelope); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
-    log.Print("just closing")
-    output.Close()
+	output.Close()
 }
 
 type Room struct {
@@ -139,46 +137,39 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 //Mocked for now, get the data from Exchange eventually
 func getRooms(all bool) (r Rooms) {
 	r = readRoomRecords()
-    exchangeHost, err := ioutil.ReadFile("data/host")
-    if err != nil {
-        log.Fatal("couldn't read host", err)
-    }
-    authFile, err := ioutil.ReadFile("data/authfile")
-    if err != nil {
-        log.Fatal("couldn't read auth", err)
-    }
+	exchangeHost, err := ioutil.ReadFile("data/host")
+	if err != nil {
+		log.Fatal("couldn't read host", err)
+	}
+	authFile, err := ioutil.ReadFile("data/authfile")
+	if err != nil {
+		log.Fatal("couldn't read auth", err)
+	}
 
-    log.Print("Got host and auth")
-    log.Printf("host: %v", strings.TrimSpace(string(exchangeHost)))
-    log.Printf("auth: %v", strings.TrimSpace(string(authFile)))
-    cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(exchangeHost)), "-u", strings.TrimSpace(string(authFile)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
-    log.Printf("cmd: %v", cmd)
-//    cmd := exec.Command("cat")
+	cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(exchangeHost)), "-u", strings.TrimSpace(string(authFile)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
+	//    cmd := exec.Command("cat")
 
-    read, write := io.Pipe()
-    cmd.Stdin = read
-    var buffer bytes.Buffer
-    cmd.Stdout = &buffer
-    log.Print("doing fine so far")
+	read, write := io.Pipe()
+	cmd.Stdin = read
+	var buffer bytes.Buffer
+	cmd.Stdout = &buffer
 
-    if err := cmd.Start(); err != nil {
-        log.Fatal("Couldn't start command", err)
-    }
-    log.Print("About to write request")
+	if err := cmd.Start(); err != nil {
+		log.Fatal("Couldn't start command", err)
+	}
 	go writeAvailabilityRequest(r, time.Now().Format(time.RFC3339), time.Now().Add(time.Hour).Format(time.RFC3339), write)
-    if err := cmd.Wait(); err != nil {
-        log.Fatal("Failed on wait", err)
-    }
-    log.Print("Made it through the wait")
-    io.Copy(os.Stdout, &buffer)
-//	r[2].Start = time.Now().Add(time.Minute * 15)
-//	r[2].Open = false
-//	r[4].Start = time.Now().Add(time.Hour)
-//	r[4].Open = false
+	if err := cmd.Wait(); err != nil {
+		log.Fatal("Failed on wait", err)
+	}
+	io.Copy(os.Stdout, &buffer)
+	//	r[2].Start = time.Now().Add(time.Minute * 15)
+	//	r[2].Open = false
+	//	r[4].Start = time.Now().Add(time.Hour)
+	//	r[4].Open = false
 	//	r = append(r, Room{"Room1", "2nd", 4, "CR-PL2-Room1@place.com", time.Now(), time.Duration(10), true})
-//	if all {
-		//		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
-//	}
+	//	if all {
+	//		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
+	//	}
 	return
 }
 
