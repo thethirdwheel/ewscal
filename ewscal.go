@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+    "io"
 )
 
 type Timeblock struct {
@@ -83,7 +84,7 @@ func generateMailboxes(roomlist Rooms) (m Mailboxes) {
 	return
 }
 
-func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string) {
+func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, output io.Writer) {
 	boxen := generateMailboxes(roomlist)
 
 	//Set timezone information for return values
@@ -100,11 +101,11 @@ func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string) 
 
 	body := AvailabilityEnvelopeBody{Request: request}
 	envelope := AvailabilityEnvelope{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema", XmlnsSoap: "http://schemas.xmlsoap.org/soap/envelope/", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Body: body}
-	enc := xml.NewEncoder(os.Stdout)
+	enc := xml.NewEncoder(output)
 	enc.Indent("  ", "    ")
-	fmt.Print(xml.Header)
+	fmt.Fprint(output, xml.Header)
 	if err := enc.Encode(envelope); err != nil {
-		fmt.Printf("error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 }
 
@@ -129,7 +130,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 //Mocked for now, get the data from Exchange eventually
 func getRooms(all bool) (r Rooms) {
 	r = readRoomRecords()
-	writeAvailabilityRequest(r, time.Now().Format(time.RFC3339), time.Now().Add(time.Hour).Format(time.RFC3339))
+	writeAvailabilityRequest(r, time.Now().Format(time.RFC3339), time.Now().Add(time.Hour).Format(time.RFC3339), os.Stdout)
 	//	r = append(r, Room{"Room1", "2nd", 4, "CR-PL2-Room1@place.com", time.Now(), time.Duration(10), true})
 	if all {
 		//		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
