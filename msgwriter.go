@@ -1,4 +1,4 @@
-package main
+package ewscal
 
 import (
 	"bufio"
@@ -74,7 +74,7 @@ type AvailabilityEnvelope struct {
 	XmlnsT    string   `xml:"xmlns:t,attr"`
 	Body      AvailabilityEnvelopeBody
 }
-
+/*
 func generateMailboxes(source io.Reader) Mailboxes {
 	boxen := make([]Mailbox, 0)
 	scanner := bufio.NewScanner(source)
@@ -85,21 +85,27 @@ func generateMailboxes(source io.Reader) Mailboxes {
 		log.Fatal(err)
 	}
 	return Mailboxes{Boxes: boxen}
+}*/
+
+func generateMailboxes(roomlist Rooms) (m Mailboxes) {
+    for r := range roomlist {
+        m = append(m, Mailbox{EmailAddress: r.Email, AttendeeType: "Required"})
+    }
+    return
 }
 
-/*
-func main() {
-	roomlist := flag.String("roomlist", "roomlist", "file containing the list of conference room email addresses to query")
-	startdate := flag.String("startdate", time.Now().Add(time.Hour*12).Format(time.RFC3339), "start time in RFC3339 format")
-	enddate := flag.String("enddate", time.Now().Add(time.Hour*24).Format(time.RFC3339), "end time in RFC3339 format")
-	flag.Parse()
+func writeAvailabilityRequest(roomlist Rooms, startdate Time, enddate Time) {
+//	roomlist := flag.String("roomlist", "roomlist", "file containing the list of conference room email addresses to query")
+//	startdate := flag.String("startdate", time.Now().Add(time.Hour*12).Format(time.RFC3339), "start time in RFC3339 format")
+//	enddate := flag.String("enddate", time.Now().Add(time.Hour*24).Format(time.RFC3339), "end time in RFC3339 format")
+//	flag.Parse()
 
 	//Build set of rooms we're interested in
-	roomfile, err := os.Open(*roomlist)
-	if err != nil {
-		log.Fatal(err)
-	}
-	boxen := generateMailboxes(roomfile)
+//	roomfile, err := os.Open(*roomlist)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+	boxen := generateMailboxes(roomlist)
 
 	//Set timezone information for return values
 	tz := TimeZone{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/types", Bias: 480}
@@ -121,4 +127,4 @@ func main() {
 	if err := enc.Encode(envelope); err != nil {
 		fmt.Printf("error: %v\n", err)
 	}
-}*/
+}
