@@ -3,10 +3,11 @@ package main
 import (
 	"bufio"
 	"encoding/xml"
-//	"flag"
-//	"fmt"
+	//	"flag"
+	//	"fmt"
 	"io"
 	"log"
+
 //	"os"
 //	"time"
 )
