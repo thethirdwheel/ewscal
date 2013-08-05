@@ -131,10 +131,10 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 func getRooms(all bool) (r Rooms) {
 	r = readRoomRecords()
 	writeAvailabilityRequest(r, time.Now().Format(time.RFC3339), time.Now().Add(time.Hour).Format(time.RFC3339), os.Stdout)
-    r[2].Start = time.Now().Add(time.Minute*15)
-    r[2].Open = false
-    r[4].Start = time.Now().Add(time.Hour)
-    r[4].Open = false
+	r[2].Start = time.Now().Add(time.Minute * 15)
+	r[2].Open = false
+	r[4].Start = time.Now().Add(time.Hour)
+	r[4].Open = false
 	//	r = append(r, Room{"Room1", "2nd", 4, "CR-PL2-Room1@place.com", time.Now(), time.Duration(10), true})
 	if all {
 		//		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
@@ -160,9 +160,9 @@ func rowToRoom(row string) (r Room) {
 	r.Floor = rowArray[1]
 	r.Size, _ = strconv.Atoi(rowArray[2])
 	r.Email = rowArray[3]
-    r.Start = time.Now()
-    r.Duration = time.Minute * 30
-    r.Open = true
+	r.Start = time.Now()
+	r.Duration = time.Minute * 30
+	r.Open = true
 	return
 }
 
