@@ -14,14 +14,14 @@ type TimeWindow struct {
 */
 
 type Room struct {
-	Name      string
-    Floor     string
-    Size      int
-    Email     string
-//	Vacancies []TimeWindow
-    Start     time.Time
-    Duration  time.Duration
-    Open      bool
+	Name  string
+	Floor string
+	Size  int
+	Email string
+	//	Vacancies []TimeWindow
+	Start    time.Time
+	Duration time.Duration
+	Open     bool
 }
 
 type Rooms []Room
@@ -36,7 +36,7 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 func getRooms(all bool) (r Rooms) {
 	r = append(r, Room{"Room1", "2nd", 4, "CR-PL2-Room1@place.com", time.Now(), time.Duration(10), true})
 	if all {
-		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute*5), time.Duration(60), false})
+		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
 	}
 	return
 }
