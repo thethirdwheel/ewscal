@@ -161,7 +161,7 @@ func rowToRoom(row string) (r Room) {
 	r.Size, _ = strconv.Atoi(rowArray[2])
 	r.Email = rowArray[3]
 	r.Start = time.Now()
-	r.Duration = time.Minute * 30
+	r.Duration = time.Minute
 	r.Open = true
 	return
 }
