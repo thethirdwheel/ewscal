@@ -18,40 +18,40 @@ import (
 )
 
 type CalendarEvent struct {
-    XMLName xml.Name    `xml:"CalendarEvent"`
-    StartTime time.Time
-    EndTime time.Time
-    BusyType string
+	XMLName   xml.Name `xml:"CalendarEvent"`
+	StartTime time.Time
+	EndTime   time.Time
+	BusyType  string
 }
 
 type CalendarEventArray struct {
-    XMLName xml.Name    `xml:"CalendarEventArray"`
-    Events []CalendarEvent
+	XMLName xml.Name `xml:"CalendarEventArray"`
+	Events  []CalendarEvent
 }
 
 type FreeBusyResponse struct {
-    XMLName xml.Name    `xml:"FreeBusyResponse"`
-    CalendarArray CalendarEventArray
+	XMLName       xml.Name `xml:"FreeBusyResponse"`
+	CalendarArray CalendarEventArray
 }
 
 type FreeBusyResponseArray struct {
-    XMLName xml.Name `xml:"FreeBusyResponseArray"`
-    Responses []FreeBusyResponse
+	XMLName   xml.Name `xml:"FreeBusyResponseArray"`
+	Responses []FreeBusyResponse
 }
 
 type UserAvailabilityResponse struct {
-    XMLName xml.Name `xml:"GetUserAvailabilityResponse"`
-    ResponseArray FreeBusyResponseArray
+	XMLName       xml.Name `xml:"GetUserAvailabilityResponse"`
+	ResponseArray FreeBusyResponseArray
 }
 
 type SoapBody struct {
-    XMLName xml.Name `xml:"Body"`
-    Response UserAvailabilityResponse
+	XMLName  xml.Name `xml:"Body"`
+	Response UserAvailabilityResponse
 }
 
 type FreeBusyResponseEnvelope struct {
-    XMLName     xml.Name `xml:"Envelope"`
-    Body        SoapBody
+	XMLName xml.Name `xml:"Envelope"`
+	Body    SoapBody
 }
 
 type Timeblock struct {
@@ -125,7 +125,7 @@ func generateMailboxes(roomlist Rooms) (m Mailboxes) {
 }
 
 func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, output io.WriteCloser) {
-    defer output.Close()
+	defer output.Close()
 	boxen := generateMailboxes(roomlist)
 
 	//Set timezone information for return values
@@ -196,23 +196,23 @@ func getRooms(all bool) (r Rooms) {
 	if err := cmd.Wait(); err != nil {
 		log.Fatal("Failed on wait", err)
 	}
-    v := FreeBusyResponseEnvelope{}
-    if err := xml.Unmarshal(buffer.Bytes(), &v); err != nil {
-        log.Fatal("error: %v", err)
-    }
-    for i, response := range v.Body.Response.ResponseArray.Responses {
-        r[i].Start = time.Now()
-        r[i].Duration = time.Hour
-        for _, event := range response.CalendarArray.Events {
-            if (r[i].Start.Before(event.StartTime)) {
-                r[i].Duration = event.StartTime.Sub(r[i].Start)
-                break
-            } else {
-                r[i].Start = event.EndTime
-            }
-        }
-    }
-    return
+	v := FreeBusyResponseEnvelope{}
+	if err := xml.Unmarshal(buffer.Bytes(), &v); err != nil {
+		log.Fatal("error: %v", err)
+	}
+	for i, response := range v.Body.Response.ResponseArray.Responses {
+		r[i].Start = time.Now()
+		r[i].Duration = time.Hour
+		for _, event := range response.CalendarArray.Events {
+			if r[i].Start.Before(event.StartTime) {
+				r[i].Duration = event.StartTime.Sub(r[i].Start)
+				break
+			} else {
+				r[i].Start = event.EndTime
+			}
+		}
+	}
+	return
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, all bool) {
