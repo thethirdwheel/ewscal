@@ -17,6 +17,43 @@ import (
 	"time"
 )
 
+type CalendarEvent struct {
+    XMLName xml.Name    `xml:"CalendarEvent"`
+    StartTime time.Time
+    EndTime time.Time
+    BusyType string
+}
+
+type CalendarEventArray struct {
+    XMLName xml.Name    `xml:"CalendarEventArray"`
+    Events []CalendarEvent
+}
+
+type FreeBusyResponse struct {
+    XMLName xml.Name    `xml:"FreeBusyResponse"`
+    CalendarArray CalendarEventArray
+}
+
+type FreeBusyResponseArray struct {
+    XMLName xml.Name `xml:"FreeBusyResponseArray"`
+    Responses []FreeBusyResponse
+}
+
+type UserAvailabilityResponse struct {
+    XMLName xml.Name `xml:"GetUserAvailabilityResponse"`
+    ResponseArray FreeBusyResponseArray
+}
+
+type SoapBody struct {
+    XMLName xml.Name `xml:"Body"`
+    Response UserAvailabilityResponse
+}
+
+type FreeBusyResponseEnvelope struct {
+    XMLName     xml.Name `xml:"Envelope"`
+    Body        SoapBody
+}
+
 type Timeblock struct {
 	Bias      int
 	Time      string
@@ -88,6 +125,7 @@ func generateMailboxes(roomlist Rooms) (m Mailboxes) {
 }
 
 func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, output io.WriteCloser) {
+    defer output.Close()
 	boxen := generateMailboxes(roomlist)
 
 	//Set timezone information for return values
@@ -113,7 +151,6 @@ func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, 
 	if err := enc.Encode(envelope); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
-	output.Close()
 }
 
 type Room struct {
@@ -134,7 +171,6 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 	}
 }
 
-//Mocked for now, get the data from Exchange eventually
 func getRooms(all bool) (r Rooms) {
 	r = readRoomRecords()
 	exchangeHost, err := ioutil.ReadFile("data/host")
@@ -147,7 +183,6 @@ func getRooms(all bool) (r Rooms) {
 	}
 
 	cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(exchangeHost)), "-u", strings.TrimSpace(string(authFile)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
-	//    cmd := exec.Command("cat")
 
 	read, write := io.Pipe()
 	cmd.Stdin = read
@@ -161,16 +196,23 @@ func getRooms(all bool) (r Rooms) {
 	if err := cmd.Wait(); err != nil {
 		log.Fatal("Failed on wait", err)
 	}
-	io.Copy(os.Stdout, &buffer)
-	//	r[2].Start = time.Now().Add(time.Minute * 15)
-	//	r[2].Open = false
-	//	r[4].Start = time.Now().Add(time.Hour)
-	//	r[4].Open = false
-	//	r = append(r, Room{"Room1", "2nd", 4, "CR-PL2-Room1@place.com", time.Now(), time.Duration(10), true})
-	//	if all {
-	//		r = append(r, Room{"Room2", "8th", 6, "CR-PL8-Room2@place.com", time.Now().Add(time.Minute * 5), time.Duration(60), false})
-	//	}
-	return
+    v := FreeBusyResponseEnvelope{}
+    if err := xml.Unmarshal(buffer.Bytes(), &v); err != nil {
+        log.Fatal("error: %v", err)
+    }
+    for i, response := range v.Body.Response.ResponseArray.Responses {
+        r[i].Start = time.Now()
+        r[i].Duration = time.Hour
+        for _, event := range response.CalendarArray.Events {
+            if (r[i].Start.Before(event.StartTime)) {
+                r[i].Duration = event.StartTime.Sub(r[i].Start)
+                break
+            } else {
+                r[i].Start = event.EndTime
+            }
+        }
+    }
+    return
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, all bool) {
@@ -217,5 +259,5 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/api/v1/room/all", makeHandler(apiHandler, true))
 	http.HandleFunc("/api/v1/room/available", makeHandler(apiHandler, false))
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":6060", nil)
 }
