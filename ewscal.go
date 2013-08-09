@@ -199,7 +199,7 @@ func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 				(*r)[i].Duration = eventStart.Sub((*r)[i].Start)
 				break
 			} else {
-                (*r)[i].Open = false
+				(*r)[i].Open = false
 				(*r)[i].Start = eventEnd
 			}
 		}
