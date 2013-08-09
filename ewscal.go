@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -172,6 +173,20 @@ type Room struct {
 
 type Rooms []Room
 
+func (r Rooms) Len() int {
+	return len(r)
+}
+
+func (r Rooms) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+type ByStart struct{ Rooms }
+
+func (r ByStart) Less(i, j int) bool {
+	return r.Rooms[i].Start.Before(r.Rooms[j].Start)
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fn(w, r, all)
@@ -243,6 +258,7 @@ func getRooms(all bool, startTime time.Time, endTime time.Time, rConf string) (r
 		log.Fatal("Failed on wait", err)
 	}
 	updateRoomsFromResponse(&r, buffer, startTime)
+	sort.Sort(ByStart{r})
 	return
 }
 
@@ -290,5 +306,5 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/api/v1/room/all", makeHandler(apiHandler, true))
 	http.HandleFunc("/api/v1/room/available", makeHandler(apiHandler, false))
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":6060", nil)
 }
