@@ -179,10 +179,10 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 }
 
 func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
-    loc, err := time.LoadLocation("America/Los_Angeles")
-    if err != nil {
-        log.Fatal("error: %v", err)
-    }
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		log.Fatal("error: %v", err)
+	}
 	v := FreeBusyResponseEnvelope{}
 	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
 		log.Fatal("error: %v", err)
