@@ -19,24 +19,29 @@ import (
 
 type CalendarEvent struct {
 	XMLName   xml.Name `xml:"CalendarEvent"`
-	StartTime time.Time
-	EndTime   time.Time
+	StartTime string
+	EndTime   string
 	BusyType  string
 }
 
 type CalendarEventArray struct {
 	XMLName xml.Name `xml:"CalendarEventArray"`
-	Events  []CalendarEvent
+	Events  []CalendarEvent `xml:"CalendarEvent"`
+}
+
+type ResponseFreeBusyView struct {
+    XMLName xml.Name    `xml:"FreeBusyView"`
+	CalendarArray CalendarEventArray
 }
 
 type FreeBusyResponse struct {
 	XMLName       xml.Name `xml:"FreeBusyResponse"`
-	CalendarArray CalendarEventArray
+    View    ResponseFreeBusyView
 }
 
 type FreeBusyResponseArray struct {
 	XMLName   xml.Name `xml:"FreeBusyResponseArray"`
-	Responses []FreeBusyResponse
+	Responses []FreeBusyResponse `xml:"FreeBusyResponse"`
 }
 
 type UserAvailabilityResponse struct {
@@ -171,6 +176,30 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 	}
 }
 
+func updateRoomsFromResponse(rPointer *Rooms, b bytes.Buffer) {
+    r := *rPointer
+    v := FreeBusyResponseEnvelope{}
+    log.Printf("BEFORE: %v", v)
+	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
+		log.Fatal("error: %v", err)
+	}
+    log.Printf("AFTER: %v", v)
+	for i, response := range v.Body.Response.ResponseArray.Responses {
+		r[i].Start = time.Now()
+		r[i].Duration = time.Hour
+		for _, event := range response.View.CalendarArray.Events {
+            eventStart, _ := time.Parse(time.RFC3339, event.StartTime)
+            eventEnd , _ := time.Parse(time.RFC3339, event.EndTime)
+			if r[i].Start.Before(eventStart) {
+				r[i].Duration = eventStart.Sub(r[i].Start)
+				break
+			} else {
+				r[i].Start = eventEnd
+			}
+		}
+	}
+}
+
 func getRooms(all bool) (r Rooms) {
 	r = readRoomRecords()
 	exchangeHost, err := ioutil.ReadFile("data/host")
@@ -196,22 +225,7 @@ func getRooms(all bool) (r Rooms) {
 	if err := cmd.Wait(); err != nil {
 		log.Fatal("Failed on wait", err)
 	}
-	v := FreeBusyResponseEnvelope{}
-	if err := xml.Unmarshal(buffer.Bytes(), &v); err != nil {
-		log.Fatal("error: %v", err)
-	}
-	for i, response := range v.Body.Response.ResponseArray.Responses {
-		r[i].Start = time.Now()
-		r[i].Duration = time.Hour
-		for _, event := range response.CalendarArray.Events {
-			if r[i].Start.Before(event.StartTime) {
-				r[i].Duration = event.StartTime.Sub(r[i].Start)
-				break
-			} else {
-				r[i].Start = event.EndTime
-			}
-		}
-	}
+	updateRoomsFromResponse(&r, buffer)
 	return
 }
 
