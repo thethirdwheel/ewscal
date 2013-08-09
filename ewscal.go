@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -303,8 +304,10 @@ func readRoomRecords(filename string) Rooms {
 }
 
 func main() {
+	var port = flag.Int("port", 8080, "Port to run ewscal from")
+	flag.Parse()
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/api/v1/room/all", makeHandler(apiHandler, true))
 	http.HandleFunc("/api/v1/room/available", makeHandler(apiHandler, false))
-	http.ListenAndServe(":6060", nil)
+	http.ListenAndServe(fmt.Sprintf(":%v", *port), nil)
 }
