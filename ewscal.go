@@ -25,22 +25,22 @@ type CalendarEvent struct {
 }
 
 type CalendarEventArray struct {
-	XMLName xml.Name `xml:"CalendarEventArray"`
+	XMLName xml.Name        `xml:"CalendarEventArray"`
 	Events  []CalendarEvent `xml:"CalendarEvent"`
 }
 
 type ResponseFreeBusyView struct {
-    XMLName xml.Name    `xml:"FreeBusyView"`
+	XMLName       xml.Name `xml:"FreeBusyView"`
 	CalendarArray CalendarEventArray
 }
 
 type FreeBusyResponse struct {
-	XMLName       xml.Name `xml:"FreeBusyResponse"`
-    View    ResponseFreeBusyView
+	XMLName xml.Name `xml:"FreeBusyResponse"`
+	View    ResponseFreeBusyView
 }
 
 type FreeBusyResponseArray struct {
-	XMLName   xml.Name `xml:"FreeBusyResponseArray"`
+	XMLName   xml.Name           `xml:"FreeBusyResponseArray"`
 	Responses []FreeBusyResponse `xml:"FreeBusyResponse"`
 }
 
@@ -177,19 +177,19 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 }
 
 func updateRoomsFromResponse(rPointer *Rooms, b bytes.Buffer) {
-    r := *rPointer
-    v := FreeBusyResponseEnvelope{}
-    log.Printf("BEFORE: %v", v)
+	r := *rPointer
+	v := FreeBusyResponseEnvelope{}
+	log.Printf("BEFORE: %v", v)
 	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
 		log.Fatal("error: %v", err)
 	}
-    log.Printf("AFTER: %v", v)
+	log.Printf("AFTER: %v", v)
 	for i, response := range v.Body.Response.ResponseArray.Responses {
 		r[i].Start = time.Now()
 		r[i].Duration = time.Hour
 		for _, event := range response.View.CalendarArray.Events {
-            eventStart, _ := time.Parse(time.RFC3339, event.StartTime)
-            eventEnd , _ := time.Parse(time.RFC3339, event.EndTime)
+			eventStart, _ := time.Parse(time.RFC3339, event.StartTime)
+			eventEnd, _ := time.Parse(time.RFC3339, event.EndTime)
 			if r[i].Start.Before(eventStart) {
 				r[i].Duration = eventStart.Sub(r[i].Start)
 				break
