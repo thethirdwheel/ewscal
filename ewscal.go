@@ -179,6 +179,10 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 }
 
 func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
+    loc, err := time.LoadLocation("America/Los_Angeles")
+    if err != nil {
+        log.Fatal("error: %v", err)
+    }
 	v := FreeBusyResponseEnvelope{}
 	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
 		log.Fatal("error: %v", err)
@@ -187,11 +191,11 @@ func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 		(*r)[i].Start = startTime
 		(*r)[i].Duration = time.Hour
 		for _, event := range response.View.CalendarArray.Events {
-			eventStart, err := time.Parse(RFC3339NoTZ, event.StartTime)
+			eventStart, err := time.ParseInLocation(RFC3339NoTZ, event.StartTime, loc)
 			if err != nil {
 				log.Fatal("couldn't parse start date: ", err)
 			}
-			eventEnd, err := time.Parse(RFC3339NoTZ, event.EndTime)
+			eventEnd, err := time.ParseInLocation(RFC3339NoTZ, event.EndTime, loc)
 			if err != nil {
 				log.Fatal("couldn't parse end date: ", err)
 			}
