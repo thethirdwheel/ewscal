@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var RFC3339NoTZ = strings.TrimSuffix(time.RFC3339, "Z07:00")
+
 type CalendarEvent struct {
 	XMLName   xml.Name `xml:"CalendarEvent"`
 	StartTime string
@@ -176,32 +178,44 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 	}
 }
 
-func updateRoomsFromResponse(rPointer *Rooms, b bytes.Buffer) {
-	r := *rPointer
+func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 	v := FreeBusyResponseEnvelope{}
-	log.Printf("BEFORE: %v", v)
+	//	log.Printf("BEFORE: %v", v)
 	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
 		log.Fatal("error: %v", err)
 	}
-	log.Printf("AFTER: %v", v)
+	//	log.Printf("AFTER: %v", v)
 	for i, response := range v.Body.Response.ResponseArray.Responses {
-		r[i].Start = time.Now()
-		r[i].Duration = time.Hour
+		(*r)[i].Start = startTime
+		(*r)[i].Duration = time.Hour
 		for _, event := range response.View.CalendarArray.Events {
-			eventStart, _ := time.Parse(time.RFC3339, event.StartTime)
-			eventEnd, _ := time.Parse(time.RFC3339, event.EndTime)
-			if r[i].Start.Before(eventStart) {
-				r[i].Duration = eventStart.Sub(r[i].Start)
+			eventStart, err := time.Parse(RFC3339NoTZ, event.StartTime)
+			if err != nil {
+				log.Fatal("couldn't parse start date: ", err)
+			}
+			eventEnd, err := time.Parse(RFC3339NoTZ, event.EndTime)
+			if err != nil {
+				log.Fatal("couldn't parse end date: ", err)
+			}
+			if (*r)[i].Start.Before(eventStart) {
+				(*r)[i].Duration = eventStart.Sub((*r)[i].Start)
 				break
 			} else {
-				r[i].Start = eventEnd
+				(*r)[i].Start = eventEnd
 			}
 		}
 	}
 }
 
-func getRooms(all bool) (r Rooms) {
-	r = readRoomRecords()
+func initRoomTimes(r *Rooms, startTime time.Time) {
+	for i, _ := range *r {
+		(*r)[i].Start = startTime
+	}
+}
+
+func getRooms(all bool, startTime time.Time, endTime time.Time, rConf string) (r Rooms) {
+	r = readRoomRecords(rConf)
+	initRoomTimes(&r, startTime)
 	exchangeHost, err := ioutil.ReadFile("data/host")
 	if err != nil {
 		log.Fatal("couldn't read host", err)
@@ -221,16 +235,16 @@ func getRooms(all bool) (r Rooms) {
 	if err := cmd.Start(); err != nil {
 		log.Fatal("Couldn't start command", err)
 	}
-	go writeAvailabilityRequest(r, time.Now().Format(time.RFC3339), time.Now().Add(time.Hour).Format(time.RFC3339), write)
+	go writeAvailabilityRequest(r, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339), write)
 	if err := cmd.Wait(); err != nil {
 		log.Fatal("Failed on wait", err)
 	}
-	updateRoomsFromResponse(&r, buffer)
+	updateRoomsFromResponse(&r, buffer, startTime)
 	return
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, all bool) {
-	listing := getRooms(all)
+	listing := getRooms(all, time.Now(), time.Now().Add(time.Hour), "data/roomRecords")
 	response, err := json.Marshal(listing)
 	if nil == err {
 		w.Write(response)
@@ -253,9 +267,9 @@ func rowToRoom(row string) (r Room) {
 	return
 }
 
-func readRoomRecords() Rooms {
+func readRoomRecords(filename string) Rooms {
 	rooms := make([]Room, 0)
-	roomfile, err := os.Open("data/roomRecords")
+	roomfile, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
