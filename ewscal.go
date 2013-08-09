@@ -180,11 +180,9 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 
 func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 	v := FreeBusyResponseEnvelope{}
-	//	log.Printf("BEFORE: %v", v)
 	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
 		log.Fatal("error: %v", err)
 	}
-	//	log.Printf("AFTER: %v", v)
 	for i, response := range v.Body.Response.ResponseArray.Responses {
 		(*r)[i].Start = startTime
 		(*r)[i].Duration = time.Hour
@@ -201,6 +199,7 @@ func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 				(*r)[i].Duration = eventStart.Sub((*r)[i].Start)
 				break
 			} else {
+                (*r)[i].Open = false
 				(*r)[i].Start = eventEnd
 			}
 		}
