@@ -287,5 +287,5 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/api/v1/room/all", makeHandler(apiHandler, true))
 	http.HandleFunc("/api/v1/room/available", makeHandler(apiHandler, false))
-	http.ListenAndServe(":6060", nil)
+	http.ListenAndServe(":8080", nil)
 }
