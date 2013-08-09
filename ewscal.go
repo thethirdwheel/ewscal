@@ -215,7 +215,7 @@ func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
 			if err != nil {
 				log.Fatal("couldn't parse end date: ", err)
 			}
-			if (*r)[i].Start.Before(eventStart) {
+			if (*r)[i].Start.Before(eventStart) && eventStart.Sub((*r)[i].Start) > time.Duration(10)*time.Minute {
 				(*r)[i].Duration = eventStart.Sub((*r)[i].Start)
 				break
 			} else {
