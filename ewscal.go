@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"flag"
@@ -194,14 +193,14 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) ht
 	}
 }
 
-func updateRoomsFromResponse(r *Rooms, b bytes.Buffer, startTime time.Time) {
+func updateRoomsFromResponse(r *Rooms, responseReader io.ReadCloser, startTime time.Time) {
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
-		log.Fatal("error: %v", err)
+		log.Fatal(err)
 	}
 	v := FreeBusyResponseEnvelope{}
-	if err := xml.Unmarshal(b.Bytes(), &v); err != nil {
-		log.Fatal("error: %v", err)
+	if err := xml.NewDecoder(responseReader).Decode(&v); err != nil {
+		log.Fatal(err)
 	}
 	for i, response := range v.Body.Response.ResponseArray.Responses {
 		(*r)[i].Start = startTime
@@ -246,19 +245,24 @@ func getRooms(all bool, startTime time.Time, endTime time.Time, rConf string) (r
 
 	cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(exchangeHost)), "-u", strings.TrimSpace(string(authFile)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
 
-	read, write := io.Pipe()
-	cmd.Stdin = read
-	var buffer bytes.Buffer
-	cmd.Stdout = &buffer
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		log.Fatal("Couldn't start command", err)
 	}
-	go writeAvailabilityRequest(r, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339), write)
+
+	go writeAvailabilityRequest(r, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339), stdin)
+	updateRoomsFromResponse(&r, stdout, startTime)
 	if err := cmd.Wait(); err != nil {
 		log.Fatal("Failed on wait", err)
 	}
-	updateRoomsFromResponse(&r, buffer, startTime)
 	sort.Sort(ByStart{r})
 	return
 }
