@@ -1,19 +1,21 @@
 package ews
 
 import (
+	"bufio"
 	"encoding/xml"
-	"time"
-	"strings"
-	"io"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"io/ioutil"
 	"os/exec"
 	"sort"
 	"strconv"
-	"bufio"
+	"strings"
+	"time"
 )
+
+var RFC3339NoTZ = strings.TrimSuffix(time.RFC3339, "Z07:00")
 
 type CalendarEvent struct {
 	XMLName   xml.Name `xml:"CalendarEvent"`
@@ -120,7 +122,6 @@ type AvailabilityEnvelope struct {
 	Body      AvailabilityEnvelopeBody
 }
 
-
 type Room struct {
 	Name     string
 	Floor    string
@@ -133,6 +134,8 @@ type Room struct {
 
 type Rooms []Room
 
+type ByStart struct{ Rooms }
+
 func (r Rooms) Len() int {
 	return len(r)
 }
@@ -141,13 +144,9 @@ func (r Rooms) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
-type ByStart struct{ Rooms }
-
 func (r ByStart) Less(i, j int) bool {
 	return r.Rooms[i].Start.Before(r.Rooms[j].Start)
 }
-
-var RFC3339NoTZ = strings.TrimSuffix(time.RFC3339, "Z07:00")
 
 func generateMailboxes(roomlist Rooms) (m Mailboxes) {
 	for _, r := range roomlist {
@@ -223,19 +222,37 @@ func initRoomTimes(r *Rooms, startTime time.Time) {
 	}
 }
 
-func GetRooms(all bool, startTime time.Time, endTime time.Time, rConf string) (r Rooms) {
-	r = readRoomRecords(rConf)
-	initRoomTimes(&r, startTime)
-	exchangeHost, err := ioutil.ReadFile("data/host")
-	if err != nil {
-		log.Fatal("couldn't read host", err)
-	}
-	authFile, err := ioutil.ReadFile("data/authfile")
+type RoomConf struct {
+	Auth       string
+	Host       string
+	RoomString string
+}
+
+func MakeConf(authFile string, hostFile string, roomFile string) (c RoomConf) {
+	var err error
+	authBytes, err := ioutil.ReadFile(authFile)
 	if err != nil {
 		log.Fatal("couldn't read auth", err)
 	}
+	c.Auth = string(authBytes)
+	hostBytes, err := ioutil.ReadFile(hostFile)
+	if err != nil {
+		log.Fatal("couldn't read host", err)
+	}
+	c.Host = string(hostBytes)
+	roomBytes, err := ioutil.ReadFile(roomFile)
+	if err != nil {
+		log.Fatal("couldn't read room config", err)
+	}
+	c.RoomString = string(roomBytes)
+	return
+}
 
-	cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(exchangeHost)), "-u", strings.TrimSpace(string(authFile)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
+func GetRooms(all bool, startTime time.Time, endTime time.Time, rConf RoomConf) (r Rooms) {
+	r = readRoomRecords(strings.NewReader(rConf.RoomString))
+	initRoomTimes(&r, startTime)
+
+	cmd := exec.Command("curl", "--ntlm", strings.TrimSpace(string(rConf.Host)), "-u", strings.TrimSpace(string(rConf.Auth)), "--data", "@-", "--header", "content-type: text/xml; charset=utf-8")
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -271,13 +288,9 @@ func rowToRoom(row string) (r Room) {
 	return
 }
 
-func readRoomRecords(filename string) Rooms {
+func readRoomRecords(roomReader io.Reader) Rooms {
 	rooms := make([]Room, 0)
-	roomfile, err := os.Open(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	scanner := bufio.NewScanner(roomfile)
+	scanner := bufio.NewScanner(roomReader)
 	for scanner.Scan() {
 		rooms = append(rooms, rowToRoom(scanner.Text()))
 	}
