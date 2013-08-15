@@ -229,7 +229,6 @@ type RoomConf struct {
 }
 
 func MakeConf(authFile string, hostFile string, roomFile string) (c RoomConf) {
-	var err error
 	authBytes, err := ioutil.ReadFile(authFile)
 	if err != nil {
 		log.Fatal("couldn't read auth", err)
