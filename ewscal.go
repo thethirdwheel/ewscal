@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"github.com/thethirdwheel/ewscal/ews"
 	"io"
 	"io/ioutil"
 	"log"
@@ -20,114 +21,9 @@ import (
 
 var RFC3339NoTZ = strings.TrimSuffix(time.RFC3339, "Z07:00")
 
-type CalendarEvent struct {
-	XMLName   xml.Name `xml:"CalendarEvent"`
-	StartTime string
-	EndTime   string
-	BusyType  string
-}
-
-type CalendarEventArray struct {
-	XMLName xml.Name        `xml:"CalendarEventArray"`
-	Events  []CalendarEvent `xml:"CalendarEvent"`
-}
-
-type ResponseFreeBusyView struct {
-	XMLName       xml.Name `xml:"FreeBusyView"`
-	CalendarArray CalendarEventArray
-}
-
-type FreeBusyResponse struct {
-	XMLName xml.Name `xml:"FreeBusyResponse"`
-	View    ResponseFreeBusyView
-}
-
-type FreeBusyResponseArray struct {
-	XMLName   xml.Name           `xml:"FreeBusyResponseArray"`
-	Responses []FreeBusyResponse `xml:"FreeBusyResponse"`
-}
-
-type UserAvailabilityResponse struct {
-	XMLName       xml.Name `xml:"GetUserAvailabilityResponse"`
-	ResponseArray FreeBusyResponseArray
-}
-
-type SoapBody struct {
-	XMLName  xml.Name `xml:"Body"`
-	Response UserAvailabilityResponse
-}
-
-type FreeBusyResponseEnvelope struct {
-	XMLName xml.Name `xml:"Envelope"`
-	Body    SoapBody
-}
-
-type Timeblock struct {
-	Bias      int
-	Time      string
-	DayOrder  int
-	Month     int
-	DayOfWeek string
-}
-
-type TimeZone struct {
-	XMLName      xml.Name `xml:"t:TimeZone"`
-	Xmlns        string   `xml:"xmlns,attr"`
-	Bias         int
-	StandardTime Timeblock
-	DaylightTime Timeblock
-}
-
-type Mailboxes struct {
-	XMLName xml.Name `xml:"MailboxDataArray"`
-	Boxes   []Mailbox
-}
-
-type Mailbox struct {
-	XMLName          xml.Name `xml:"t:MailboxData"`
-	EmailAddress     string   `xml:"t:Email>t:Address"`
-	AttendeeType     string   `xml:"t:AttendeeType"`
-	ExcludeConflicts bool     `xml:"t:ExcludeConflicts"`
-}
-
-type TimeWindow struct {
-	StartTime string `xml:"t:StartTime"`
-	EndTime   string `xml:"t:EndTime"`
-}
-
-type FreeBusyView struct {
-	XMLName        xml.Name   `xml:"t:FreeBusyViewOptions"`
-	TimeWindow     TimeWindow `xml:"t:TimeWindow"`
-	MergedInterval int        `xml:"t:MergedFreeBusyIntervalInMinutes"`
-	RequestedView  string     `xml:"t:RequestedView"`
-}
-
-type AvailabilityRequest struct {
-	XMLName          xml.Name `xml:"GetUserAvailabilityRequest"`
-	Xmlns            string   `xml:"xmlns,attr"`
-	XmlnsT           string   `xml:"xmlns:t,attr"`
-	Tz               TimeZone
-	MailboxDataArray Mailboxes
-	Fbv              FreeBusyView
-}
-
-type AvailabilityEnvelopeBody struct {
-	XMLName xml.Name `xml:"soap:Body"`
-	Request AvailabilityRequest
-}
-
-type AvailabilityEnvelope struct {
-	XMLName   xml.Name `xml:"soap:Envelope"`
-	XmlnsXsi  string   `xml:"xmlns:xsi,attr"`
-	XmlnsXsd  string   `xml:"xmlns:xsd,attr"`
-	XmlnsSoap string   `xml:"xmlns:soap,attr"`
-	XmlnsT    string   `xml:"xmlns:t,attr"`
-	Body      AvailabilityEnvelopeBody
-}
-
-func generateMailboxes(roomlist Rooms) (m Mailboxes) {
+func generateMailboxes(roomlist Rooms) (m ews.Mailboxes) {
 	for _, r := range roomlist {
-		m.Boxes = append(m.Boxes, Mailbox{EmailAddress: r.Email, AttendeeType: "Required"})
+		m.Boxes = append(m.Boxes, ews.Mailbox{EmailAddress: r.Email, AttendeeType: "Required"})
 	}
 	return
 }
@@ -137,19 +33,19 @@ func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, 
 	boxen := generateMailboxes(roomlist)
 
 	//Set timezone information for return values
-	tz := TimeZone{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/types", Bias: 480}
-	tz.StandardTime = Timeblock{Bias: 0, Time: "02:00:00", DayOrder: 5, Month: 10, DayOfWeek: "Sunday"}
-	tz.DaylightTime = Timeblock{Bias: -60, Time: "02:00:00", DayOrder: 1, Month: 4, DayOfWeek: "Sunday"}
+	tz := ews.TimeZone{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/types", Bias: 480}
+	tz.StandardTime = ews.Timeblock{Bias: 0, Time: "02:00:00", DayOrder: 5, Month: 10, DayOfWeek: "Sunday"}
+	tz.DaylightTime = ews.Timeblock{Bias: -60, Time: "02:00:00", DayOrder: 1, Month: 4, DayOfWeek: "Sunday"}
 
 	//Set time window of interest
-	tw := TimeWindow{StartTime: startdate, EndTime: enddate}
-	requestWindow := FreeBusyView{MergedInterval: 60, RequestedView: "FreeBusy"}
+	tw := ews.TimeWindow{StartTime: startdate, EndTime: enddate}
+	requestWindow := ews.FreeBusyView{MergedInterval: 60, RequestedView: "FreeBusy"}
 	requestWindow.TimeWindow = tw
 
-	request := AvailabilityRequest{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Tz: tz, MailboxDataArray: boxen, Fbv: requestWindow}
+	request := ews.AvailabilityRequest{Xmlns: "http://schemas.microsoft.com/exchange/services/2006/messages", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Tz: tz, MailboxDataArray: boxen, Fbv: requestWindow}
 
-	body := AvailabilityEnvelopeBody{Request: request}
-	envelope := AvailabilityEnvelope{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema", XmlnsSoap: "http://schemas.xmlsoap.org/soap/envelope/", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Body: body}
+	body := ews.AvailabilityEnvelopeBody{Request: request}
+	envelope := ews.AvailabilityEnvelope{XmlnsXsi: "http://www.w3.org/2001/XMLSchema-instance", XmlnsXsd: "http://www.w3.org/2001/XMLSchema", XmlnsSoap: "http://schemas.xmlsoap.org/soap/envelope/", XmlnsT: "http://schemas.microsoft.com/exchange/services/2006/types", Body: body}
 	enc := xml.NewEncoder(output)
 	enc.Indent("  ", "    ")
 	_, err := fmt.Fprint(output, xml.Header)
@@ -198,7 +94,7 @@ func updateRoomsFromResponse(r *Rooms, responseReader io.ReadCloser, startTime t
 	if err != nil {
 		log.Fatal(err)
 	}
-	v := FreeBusyResponseEnvelope{}
+	v := ews.FreeBusyResponseEnvelope{}
 	if err := xml.NewDecoder(responseReader).Decode(&v); err != nil {
 		log.Fatal(err)
 	}
