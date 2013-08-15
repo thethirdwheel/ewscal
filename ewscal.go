@@ -19,6 +19,32 @@ import (
 	"time"
 )
 
+type Room struct {
+	Name     string
+	Floor    string
+	Size     int
+	Email    string
+	Start    time.Time
+	Duration time.Duration
+	Open     bool
+}
+
+type Rooms []Room
+
+func (r Rooms) Len() int {
+	return len(r)
+}
+
+func (r Rooms) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+type ByStart struct{ Rooms }
+
+func (r ByStart) Less(i, j int) bool {
+	return r.Rooms[i].Start.Before(r.Rooms[j].Start)
+}
+
 var RFC3339NoTZ = strings.TrimSuffix(time.RFC3339, "Z07:00")
 
 func generateMailboxes(roomlist Rooms) (m ews.Mailboxes) {
@@ -55,32 +81,6 @@ func writeAvailabilityRequest(roomlist Rooms, startdate string, enddate string, 
 	if err := enc.Encode(envelope); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
-}
-
-type Room struct {
-	Name     string
-	Floor    string
-	Size     int
-	Email    string
-	Start    time.Time
-	Duration time.Duration
-	Open     bool
-}
-
-type Rooms []Room
-
-func (r Rooms) Len() int {
-	return len(r)
-}
-
-func (r Rooms) Swap(i, j int) {
-	r[i], r[j] = r[j], r[i]
-}
-
-type ByStart struct{ Rooms }
-
-func (r ByStart) Less(i, j int) bool {
-	return r.Rooms[i].Start.Before(r.Rooms[j].Start)
 }
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, bool), all bool) http.HandlerFunc {
