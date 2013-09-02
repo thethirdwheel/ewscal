@@ -225,7 +225,9 @@ func initRoomTimes(r *Rooms, startTime time.Time) {
 type RoomConf struct {
 	Auth       string
 	Host       string
+	LDAPHost   string
 	RoomString string
+	LDAPString string
 }
 
 func MakeConf(authFile string, hostFile string, roomFile string) (c RoomConf) {
